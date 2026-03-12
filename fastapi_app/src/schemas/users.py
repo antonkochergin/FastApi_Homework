@@ -8,5 +8,6 @@ class UserBase(BaseModel):
     last_name: str | None = Field(None, max_length=150, description="Фамилия")
 
 class User(UserBase):
+    """ Для чтения без поролей из БД"""
     id: int
     model_config = ConfigDict(from_attributes=True)
