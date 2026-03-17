@@ -10,32 +10,8 @@ class DeleteUserUseCase:
 
     async def execute(self, user_id: int) -> dict:
         """Удалить пользователя"""
-        try:
-            with self._database.session() as session:
+        with self._database.session() as session:
                 # Проверяем, существует ли пользователь
-                existing_user = self._repo.get_by_id(session, user_id)
-                if not existing_user:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Пользователь с ID {user_id} не найден"
-                    )
+            deleted = self._repo.delete(session, user_id)
 
-                # Удаляем пользователя
-                deleted = self._repo.delete(session, user_id)
-
-                if not deleted:
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail="Не удалось удалить пользователя"
-                    )
-
-                return {"message": f"Пользователь с ID {user_id} успешно удален"}
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            print(f"Ошибка при удалении пользователя: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Внутренняя ошибка сервера"
-            )
+            return {"message": f"Пользователь с ID {user_id} успешно удален"}

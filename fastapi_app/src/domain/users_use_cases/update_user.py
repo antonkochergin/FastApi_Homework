@@ -13,56 +13,27 @@ class UpdateUserUseCase:
 
     async def execute(self, user_id: int, user_data: UserUpdate) -> User:
         """Обновить данные пользователя"""
-        try:
-            with self._database.session() as session:
+        with self._database.session() as session:
                 # Проверяем, существует ли пользователь
-                existing_user = self._repo.get_by_id(session, user_id)
-                if not existing_user:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Пользователь с ID {user_id} не найден"
-                    )
+            existing_user = self._repo.get_by_id(session, user_id)
 
                 # Если обновляется username, проверяем уникальность
-                if user_data.username and user_data.username != existing_user.username:
-                    same_username = self._repo.get_by_username(session, user_data.username)
-                    if same_username:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Пользователь с username '{user_data.username}' уже существует"
-                        )
+            if user_data.username and user_data.username != existing_user.username:
+                same_username = self._repo.get_by_username(session, user_data.username)
 
                 # Если обновляется email, проверяем уникальность
-                if user_data.email and user_data.email != existing_user.email:
-                    same_email = session.query(self._repo.model).filter(
-                        self._repo.model.email == user_data.email
-                    ).first()
-                    if same_email:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Пользователь с email '{user_data.email}' уже существует"
-                        )
+            if user_data.email and user_data.email != existing_user.email:
+                same_email = session.query(self._repo.model).filter(
+                    self._repo.model.email == user_data.email
+                ).first()
+
 
                 # Если обновляется пароль - хешируем
-                if user_data.password:
-                    user_data.password = pwd_context.hash(user_data.password)
+            if user_data.password:
+                user_data.password = pwd_context.hash(user_data.password)
 
                 # Обновляем пользователя
-                updated_user = self._repo.update(session, user_id, user_data)
+            updated_user = self._repo.update(session, user_id, user_data)
 
-                if not updated_user:
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail="Не удалось обновить пользователя"
-                    )
 
-                return User.model_validate(updated_user)
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            print(f"Ошибка при обновлении пользователя: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Внутренняя ошибка сервера"
-            )
+        return User.model_validate(updated_user)
