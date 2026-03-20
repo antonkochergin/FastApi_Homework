@@ -7,8 +7,12 @@ from sqlalchemy.ext.declarative import declarative_base
 
 class Database:
     def __init__(self):
-        self._db_url = "sqlite:////home/anton-kochergin/Work/FastApi_Homework/db.sqlite3"
+        self._db_url = "sqlite:////home/anton-kochergin/work/ssu-fastapi/db2.sqlite3"
         self._engine = create_engine(self._db_url)
+
+    @property
+    def db_url(self) -> str:
+        return self._db_url
 
     @contextmanager
     def session(self):
