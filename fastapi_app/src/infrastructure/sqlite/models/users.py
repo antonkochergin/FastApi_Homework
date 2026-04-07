@@ -17,7 +17,7 @@ class User(Base):
     is_staff: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_superuser: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    phone_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # phone_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}')>"
