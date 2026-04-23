@@ -1,5 +1,5 @@
 from src.domain.users.use_cases.get_user_by_login import GetUserByLoginUseCase
-from src.domain.users_use_cases.create_user import CreateUserUseCase
+from src.domain.users.use_cases.create_user import CreateUserUseCase
 from src.domain.auth.use_cases.authenticate_user import AuthenticateUserUseCase
 from src.domain.auth.use_cases.create_access_token import CreateAccessTokenUseCase
 

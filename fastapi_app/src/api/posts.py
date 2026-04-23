@@ -1,75 +1,154 @@
-# fastapi_app/src/api/posts.py
-from fastapi import APIRouter, status
-from fastapi.responses import JSONResponse
-from fastapi_app.src.schemas.posts import Post, PostCreate, PostUpdate
-from fastapi_app.src.domain.posts_use_cases.create_post import CreatePostUseCase
-from fastapi_app.src.domain.posts_use_cases.get_post import GetPostUseCase
-from fastapi_app.src.domain.posts_use_cases.update_post import UpdatePostUseCase
-from fastapi_app.src.domain.posts_use_cases.delete_post import DeletePostUseCase
-from fastapi_app.src.core.exeptions.exceptions import AppException
+from fastapi import APIRouter, Depends, status, HTTPException
+from pydantic import ValidationError
+from src.schemas.posts import Post, PostCreate, PostUpdate
+from src.domain.posts.use_cases.get_post_by_id import GetPostByIdUseCase
+from src.domain.posts.use_cases.create_post import CreatePostUseCase
+from src.domain.posts.use_cases.update_post import UpdatePostUseCase
+from src.domain.posts.use_cases.delete_post import DeletePostUseCase
+from src.core.exceptions.database_exceptions import DatabaseOperationError
+from src.core.exceptions.domain_exceptions import (
+    PostNotFoundByIdException,
+    PostAuthorNotFoundException,
+    PostCategoryNotFoundException,
+    PostLocationNotFoundException,
+    PostTitleEmptyException,
+    PostTextEmptyException
+)
+
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
-def handle_app_exception(exc: AppException) -> JSONResponse:
-    """Конвертация AppException в HTTPException"""
-    status_code_map = {
-        "not_found": status.HTTP_404_NOT_FOUND,
-        "conflict": status.HTTP_409_CONFLICT,
-        "validation_error": status.HTTP_400_BAD_REQUEST,
-        "unprocessable": status.HTTP_422_UNPROCESSABLE_ENTITY,
-        "database_error": status.HTTP_500_INTERNAL_SERVER_ERROR,
-        "db_connection_error": status.HTTP_503_SERVICE_UNAVAILABLE,
-        "db_query_error": status.HTTP_500_INTERNAL_SERVER_ERROR,
-        "db_integrity_error": status.HTTP_400_BAD_REQUEST,
-    }
-    status_code = status_code_map.get(exc.code, status.HTTP_500_INTERNAL_SERVER_ERROR)
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "error": {
-                "code": exc.code,
-                "message": exc.message,
-                "details": exc.details
-            }
-        }
-    )
-@router.post("/", response_model=Post, status_code=status.HTTP_201_CREATED)
-async def create_post(post_data: PostCreate) -> Post:
-    try:
-        use_case = CreatePostUseCase()
-        return await use_case.execute(author_id=1, post_data=post_data)
-    except AppException as e:
-        return handle_app_exception(e)
 
-@router.get("/{post_id}", response_model=Post)
-async def get_post(post_id: int) -> Post:
+@router.get("/{post_id}", response_model=Post, status_code=status.HTTP_200_OK)
+async def get_post_by_id(
+    post_id: int,
+    use_case: GetPostByIdUseCase = Depends()
+) -> Post:
+    """Получить пост по ID"""
     try:
-        use_case = GetPostUseCase()
         return await use_case.execute(post_id=post_id)
-    except AppException as e:
-        return handle_app_exception(e)
+    except PostNotFoundByIdException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.get_detail()
+        )
+    except DatabaseOperationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=e._detail or "Внутренняя ошибка сервера"
+        )
+
+
+@router.post("/", response_model=Post, status_code=status.HTTP_201_CREATED)
+async def create_post(
+    post_data: PostCreate,
+    use_case: CreatePostUseCase = Depends()
+) -> Post:
+    """Создать новый пост"""
+    try:
+        return await use_case.execute(post_data=post_data)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.errors()
+        )
+    except PostTitleEmptyException as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.get_detail()
+        )
+    except PostTextEmptyException as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.get_detail()
+        )
+    except PostAuthorNotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,  # 404, а не 400
+            detail=e.get_detail()
+        )
+    except PostCategoryNotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,  # 404, а не 400
+            detail=e.get_detail()
+        )
+    except PostLocationNotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,  # 404, а не 400
+            detail=e.get_detail()
+        )
+    except DatabaseOperationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=e._detail or "Внутренняя ошибка сервера"
+        )
 
 
 @router.put("/{post_id}", response_model=Post, status_code=status.HTTP_200_OK)
-async def update_post(post_id: int, post_data: PostUpdate) -> Post:
+async def update_post(
+    post_id: int,
+    post_data: PostUpdate,
+    use_case: UpdatePostUseCase = Depends()
+) -> Post:
+    """Обновить пост"""
     try:
-        use_case = UpdatePostUseCase()
-        return await use_case.execute(
-            post_id=post_id,
-            post_data=post_data,
-            user_id=1
+        return await use_case.execute(post_id=post_id, post_data=post_data)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.errors()
         )
-    except AppException as e:
-        return handle_app_exception(e)
+    except PostNotFoundByIdException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.get_detail()
+        )
+    except PostTitleEmptyException as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.get_detail()
+        )
+    except PostTextEmptyException as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.get_detail()
+        )
+    except PostAuthorNotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,  # 404, а не 400
+            detail=e.get_detail()
+        )
+    except PostCategoryNotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,  # 404, а не 400
+            detail=e.get_detail()
+        )
+    except PostLocationNotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,  # 404, а не 400
+            detail=e.get_detail()
+        )
+    except DatabaseOperationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=e._detail or "Внутренняя ошибка сервера"
+        )
 
 
 @router.delete("/{post_id}", status_code=status.HTTP_200_OK)
-async def delete_post(post_id: int) -> dict:
-    """Удалить пост"""
+async def delete_post(
+    post_id: int,
+    use_case: DeletePostUseCase = Depends()
+) -> dict:
+    """Удалить пост по ID"""
     try:
-        use_case = DeletePostUseCase()
-        return await use_case.execute(
-            post_id=post_id,
-            user_id=1
+        return await use_case.execute(post_id=post_id)
+    except PostNotFoundByIdException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.get_detail()
         )
-    except AppException as e:
-        return handle_app_exception(e)
+    except DatabaseOperationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=e._detail or "Внутренняя ошибка сервера"
+        )

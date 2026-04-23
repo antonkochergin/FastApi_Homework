@@ -1,25 +1,25 @@
-from fastapi_app.src.infrastructure.sqlite.database import Base
-from sqlalchemy import String, Boolean, Integer, DateTime ,func
-from sqlalchemy.orm import Mapped, mapped_column, MappedColumn
+from sqlalchemy import String, Boolean, DateTime, Integer
+from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
+from src.infrastructure.sqlite.database import Base
 
 
 class User(Base):
-    __tablename__ = 'auth_user'
+    __tablename__ = "auth_user"  # имя таблицы из Django
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    password: Mapped[str] = mapped_column(String(120), nullable=False) #128
+    password: Mapped[str] = mapped_column(String(128))
     last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    username: Mapped[str] = mapped_column(String(150), nullable=False, unique=True)
-    first_name: Mapped[str] = mapped_column(String(128), nullable=False, default="")
-    last_name: Mapped[str] = mapped_column(String(128), nullable=False, default="")
-    email: Mapped[str] = mapped_column(String, nullable=False, default="")
-    date_joined: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    is_staff: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    is_superuser: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    date_joined: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    # phone_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
+    username: Mapped[str] = mapped_column(String(150), unique=True)
+    last_name: Mapped[str] = mapped_column(String(150), default="")
+    email: Mapped[str] = mapped_column(String(254), default="")
+    is_staff: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    date_joined: Mapped[datetime] = mapped_column(DateTime)
+    first_name: Mapped[str] = mapped_column(String(150), default="")
+
+    #is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True) #для теста alembic
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}')>"

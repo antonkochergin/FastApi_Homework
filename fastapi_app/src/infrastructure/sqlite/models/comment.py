@@ -1,0 +1,19 @@
+from sqlalchemy import String, Text, DateTime, Integer, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column
+from datetime import datetime
+from src.infrastructure.sqlite.database import Base
+
+
+class Comment(Base):
+    __tablename__ = "blog_comment"  # точное имя таблицы из Django
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+
+    # Внешние ключи
+    author_id: Mapped[int] = mapped_column(Integer, ForeignKey("auth_user.id"))
+    post_id: Mapped[int] = mapped_column(Integer, ForeignKey("blog_post.id"))
+
+    def __repr__(self):
+        return f"<Comment(id={self.id}, author_id={self.author_id}, post_id={self.post_id})>"

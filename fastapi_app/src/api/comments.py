@@ -1,58 +1,101 @@
-from fastapi import APIRouter, status
-from fastapi_app.src.schemas.comments import Comment, CommentCreate, CommentUpdate
-from fastapi_app.src.domain.comments_use_cases.get_comment import GetCommentUseCase
-from fastapi_app.src.domain.comments_use_cases.create_comment import CreateCommentUseCase
-from fastapi_app.src.domain.comments_use_cases.update_comment import UpdateCommentUseCase
-from fastapi_app.src.domain.comments_use_cases.delete_comment import DeleteCommentUseCase
-from fastapi_app.src.core.exeptions.exceptions import AppException
-from .posts import handle_app_exception
+from fastapi import APIRouter, Depends, status, HTTPException
+from pydantic import ValidationError
+from src.schemas.comments import Comment, CommentCreate, CommentUpdate
+from src.domain.comments.use_cases.get_comment_by_id import GetCommentByIdUseCase
+from src.domain.comments.use_cases.create_comment import CreateCommentUseCase
+from src.domain.comments.use_cases.update_comment import UpdateCommentUseCase
+from src.domain.comments.use_cases.delete_comment import DeleteCommentUseCase
+from src.core.exceptions.domain_exceptions import (
+    CommentNotFoundByIdException,
+    CommentAuthorNotFoundException,
+    CommentPostNotFoundException,
+    CommentTextEmptyException
+)
 
 router = APIRouter(prefix="/comments", tags=["Comments"])
 
 
-@router.post("/", response_model=Comment, status_code=status.HTTP_201_CREATED)
-async def create_comment(comment_data: CommentCreate) -> Comment:
-    """Создать новый комментарий"""
-    try:
-        use_case = CreateCommentUseCase()
-        return await use_case.execute(
-            author_id=comment_data.author_id,
-            post_id=comment_data.post_id,
-            comment_data=comment_data
-        )
-    except AppException as e:
-        return handle_app_exception(e)
-
 @router.get("/{comment_id}", response_model=Comment, status_code=status.HTTP_200_OK)
-async def get_comment(comment_id: int) -> Comment:
+async def get_comment_by_id(
+    comment_id: int,
+    use_case: GetCommentByIdUseCase = Depends()
+) -> Comment:
     """Получить комментарий по ID"""
     try:
-        use_case = GetCommentUseCase()
         return await use_case.execute(comment_id=comment_id)
-    except AppException as e:
-        return handle_app_exception(e)
+    except CommentNotFoundByIdException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.get_detail()
+        )
+
+
+@router.post("/", response_model=Comment, status_code=status.HTTP_201_CREATED)
+async def create_comment(
+    comment_data: CommentCreate,
+    use_case: CreateCommentUseCase = Depends()
+) -> Comment:
+    """Создать новый комментарий"""
+    try:
+        return await use_case.execute(comment_data=comment_data)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.errors()
+        )
+    except CommentAuthorNotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.get_detail()
+        )
+    except CommentPostNotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=e.get_detail()
+        )
+    except CommentTextEmptyException as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.get_detail()
+        )
+
 
 @router.put("/{comment_id}", response_model=Comment, status_code=status.HTTP_200_OK)
-async def update_comment(comment_id: int, comment_data: CommentUpdate) -> Comment:
+async def update_comment(
+    comment_id: int,
+    comment_data: CommentUpdate,
+    use_case: UpdateCommentUseCase = Depends()
+) -> Comment:
     """Обновить комментарий"""
     try:
-        use_case = UpdateCommentUseCase()
-        return await use_case.execute(
-            comment_id=comment_id,
-            comment_data=comment_data,
-            user_id=1
+        return await use_case.execute(comment_id=comment_id, comment_data=comment_data)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.errors()
         )
-    except AppException as e:
-        return handle_app_exception(e)
+    except CommentNotFoundByIdException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.get_detail()
+        )
+    except CommentTextEmptyException as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.get_detail()
+        )
+
 
 @router.delete("/{comment_id}", status_code=status.HTTP_200_OK)
-async def delete_comment(comment_id: int) -> dict:
+async def delete_comment(
+    comment_id: int,
+    use_case: DeleteCommentUseCase = Depends()
+) -> dict:
     """Удалить комментарий"""
     try:
-        use_case = DeleteCommentUseCase()
-        return await use_case.execute(
-            comment_id=comment_id,
-            user_id=1
+        return await use_case.execute(comment_id=comment_id)
+    except CommentNotFoundByIdException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=e.get_detail()
         )
-    except AppException as e:
-        return handle_app_exception(e)
